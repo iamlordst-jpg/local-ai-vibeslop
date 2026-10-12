@@ -1,0 +1,22 @@
+name: LocalAI
+options:
+  bundleIdPrefix: com.st
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1"
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_CFBundleDisplayName: "ST Local AI"
+    INFOPLIST_KEY_UIUserInterfaceStyle: Dark
+targets:
+  LocalAI:
+    type: application
+    platform: iOS
+    sources:
+      - path: LocalAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.st.localai
+        CODE_SIGNING_ALLOWED: NO
