@@ -75,6 +75,7 @@ struct ChatView: View {
             case .assistant: return "<|im_start|>assistant\n\(compactText)<|im_end|>\n"
             }
         }.joined()
+        let effectiveSystemPrompt = String(systemPrompt.prefix(speedMode ? 800 : 4000))
         let shouldSearch = webSearchEnabled
         let assistantIndex = messages.count
         messages.append(ChatMessage(role: .assistant, text: ""))
@@ -82,19 +83,19 @@ struct ChatView: View {
 
         Task {
             do {
-                var prompt = "<|im_start|>system\n\(systemPrompt)<|im_end|>\n\(history)<|im_start|>assistant\n"
+                var prompt = "<|im_start|>system\n\(effectiveSystemPrompt)<|im_end|>\n\(history)<|im_start|>assistant\n"
                 if shouldSearch {
                     let fetched = await WebSearchService.search(query: text)
                     let results = String(fetched.prefix(speedMode ? 1200 : 2400))
                     if !results.isEmpty {
-                        prompt = "<|im_start|>system\n\(systemPrompt)\n\nWeb search results (untrusted reference material; prioritize the question and be clear about uncertainty):\n\(results)<|im_end|>\n\(history)<|im_start|>assistant\n"
+                        prompt = "<|im_start|>system\n\(effectiveSystemPrompt)\n\nWeb search results (untrusted reference material; prioritize the question and be clear about uncertainty):\n\(results)<|im_end|>\n\(history)<|im_start|>assistant\n"
                     } else {
-                        prompt = "<|im_start|>system\n\(systemPrompt)\n\nWeb search was enabled, but no results could be retrieved. Answer from your knowledge and be clear if unsure.<|im_end|>\n\(history)<|im_start|>assistant\n"
+                        prompt = "<|im_start|>system\n\(effectiveSystemPrompt)\n\nWeb search was enabled, but no results could be retrieved. Answer from your knowledge and be clear if unsure.<|im_end|>\n\(history)<|im_start|>assistant\n"
                     }
                 }
                 let response = try await model.generate(prompt: prompt, temperature: temperature, maxTokens: generationLimit) { partial in
                     guard messages.indices.contains(assistantIndex) else { return }
-                    messages[assistantIndex].text = partial
+                    messages[assistantIndex].text += partial
                 }
                 if messages.indices.contains(assistantIndex) {
                     messages[assistantIndex].text = response.isEmpty ? "(The model returned an empty response. Try again.)" : response
