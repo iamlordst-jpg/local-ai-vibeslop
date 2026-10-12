@@ -163,7 +163,14 @@ final class LocalModelManager: ObservableObject {
     @Published private(set) var status = "Model not downloaded"
     @Published private(set) var isBusy = false
     @Published private(set) var isLoaded = false
-    @Published var selectedModelID = "qwen05"
+    @Published var selectedModelID = "qwen05" {
+        didSet {
+            guard selectedModelID != oldValue else { return }
+            context = nil
+            isLoaded = false
+            status = "Selected \\(selectedModel.title) • load this model to chat"
+        }
+    }
 
     struct ModelOption: Identifiable, Hashable {
         let id: String
