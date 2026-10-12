@@ -108,6 +108,7 @@ actor LlamaContext {
         var output = [CChar]()
         var answerPieces: [String] = []
         answerPieces.reserveCapacity(min(limit, 512))
+        var lastStreamedPieceCount = 0
 
         for generatedCount in 0..<limit {
             let token = llama_sampler_sample(sampler, context, batch.n_tokens - 1)
@@ -129,13 +130,16 @@ actor LlamaContext {
 
             // Refresh the UI in small batches to avoid a main-thread update for every token.
             if generatedCount % 4 == 3 {
-                await onUpdate(cleanGeneratedText(answerPieces.joined()))
+                let delta = answerPieces.dropFirst(lastStreamedPieceCount).joined()
+                if !delta.isEmpty { await onUpdate(delta) }
+                lastStreamedPieceCount = answerPieces.count
             }
         }
 
         if !output.isEmpty { answerPieces.append(String(decoding: output.map { UInt8(bitPattern: $0) }, as: UTF8.self)) }
+        let pendingDelta = answerPieces.dropFirst(lastStreamedPieceCount).joined()
+        if !pendingDelta.isEmpty { await onUpdate(pendingDelta) }
         let answer = cleanGeneratedText(answerPieces.joined())
-        await onUpdate(answer)
         return answer
     }
 
