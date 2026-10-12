@@ -76,7 +76,7 @@ actor LlamaContext {
         return LlamaContext(model: model, context: context)
     }
 
-    func generate(prompt: String, temperature: Float, maxTokens: Int) throws -> String {
+    func generate(prompt: String, temperature: Float, maxTokens: Int, onUpdate: @escaping @MainActor @Sendable (String) -> Void) async throws -> String {
         let tokenIDs = tokenize(prompt)
         guard !tokenIDs.isEmpty, tokenIDs.count < 1900 else {
             throw LocalModelError.promptTooLong
@@ -100,13 +100,16 @@ actor LlamaContext {
         llama_sampler_chain_add(sampler, llama_sampler_init_temp(max(0.01, temperature)))
         llama_sampler_chain_add(sampler, llama_sampler_init_dist(UInt32.random(in: 1...UInt32.max)))
 
-        let limit = max(1, min(maxTokens, 4096))
+        // Never decode past the context window. The final prompt token also needs room
+        // for at least one generated token.
+        let remainingContext = max(1, 2048 - tokenIDs.count)
+        let limit = max(1, min(maxTokens, min(4096, remainingContext)))
         var position = Int32(tokenIDs.count)
         var output = [CChar]()
         var answerPieces: [String] = []
         answerPieces.reserveCapacity(min(limit, 512))
 
-        for _ in 0..<limit {
+        for generatedCount in 0..<limit {
             let token = llama_sampler_sample(sampler, context, batch.n_tokens - 1)
             if llama_vocab_is_eog(vocabulary, token) { break }
 
@@ -123,13 +126,24 @@ actor LlamaContext {
             addToken(&batch, token, position, true)
             guard llama_decode(context, batch) == 0 else { break }
             position += 1
+
+            // Refresh the UI in small batches to avoid a main-thread update for every token.
+            if generatedCount % 4 == 3 {
+                await onUpdate(cleanGeneratedText(answerPieces.joined()))
+            }
         }
 
         if !output.isEmpty { answerPieces.append(String(decoding: output.map { UInt8(bitPattern: $0) }, as: UTF8.self)) }
-        // Join once at the end rather than repeatedly reallocating the whole answer
-        // for every generated token.
-        let answer = answerPieces.joined()
-        return answer.replacingOccurrences(of: "<|im_end|>", with: "").replacingOccurrences(of: "<|im_start|>", with: "").replacingOccurrences(of: "<|endoftext|>", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let answer = cleanGeneratedText(answerPieces.joined())
+        await onUpdate(answer)
+        return answer
+    }
+
+    private func cleanGeneratedText(_ text: String) -> String {
+        text.replacingOccurrences(of: "<|im_end|>", with: "")
+            .replacingOccurrences(of: "<|im_start|>", with: "")
+            .replacingOccurrences(of: "<|endoftext|>", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func tokenize(_ text: String) -> [llama_token] {
@@ -234,8 +248,8 @@ final class LocalModelManager: ObservableObject {
         }
     }
 
-    func generate(prompt: String, temperature: Double, maxTokens: Int) async throws -> String {
+    func generate(prompt: String, temperature: Double, maxTokens: Int, onUpdate: @escaping @MainActor @Sendable (String) -> Void) async throws -> String {
         guard let context else { throw LocalModelError.loadFailed }
-        return try await context.generate(prompt: prompt, temperature: Float(temperature), maxTokens: maxTokens)
+        return try await context.generate(prompt: prompt, temperature: Float(temperature), maxTokens: maxTokens, onUpdate: onUpdate)
     }
 }
