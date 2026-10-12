@@ -116,7 +116,7 @@ private struct SettingsView: View {
                         Slider(value: $temperature, in: 0...1.5, step: 0.05)
                         Text("Higher values generally produce more varied output.").font(.caption).foregroundStyle(.secondary)
                     }
-                    Stepper("Maximum output: \(maxTokens) tokens", value: $maxTokens, in: 64...1024, step: 64)
+                    Stepper("Maximum output: \(maxTokens) tokens", value: $maxTokens, in: 64...4096, step: 128)
                 }
                 Section("Local model") {
                     Picker("Model", selection: $model.selectedModelID) {
