@@ -1,43 +1,40 @@
-# local-ai-vibeslop
+# ST Local AI
 
-**ST Local AI** — a free, on-device AI app project for iPhone.
+A free, offline-first iOS chat app built by ST. It uses [llama.cpp](https://github.com/ggml-org/llama.cpp) for on-device inference with GGUF models.
 
-The goal is to run open-weight language models locally, without paid APIs, subscriptions, or mandatory cloud inference. The app is being developed from an iPhone using GitHub and GitHub Actions.
+## Current implementation
 
-## Current status
+- Native SwiftUI chat UI
+- On-device llama.cpp runtime (compiled as an iOS XCFramework in GitHub Actions)
+- Downloads **Qwen2.5-0.5B-Instruct Q4_K_M** (~400 MB) directly from Hugging Face on first use
+- Runs generation locally after the model is downloaded; no API key or AI cloud service
+- Editable system prompt, temperature, and output token limit
 
-- [x] Initial SwiftUI app shell
-- [x] Editable system prompt and generation settings UI
-- [ ] Integrate a native local inference runtime
-- [ ] Load a compatible GGUF model on device
-- [ ] Verify fully offline generation on iPhone 11
-- [ ] Model management, saved profiles, and local chat history
+The initial model is intentionally small for the iPhone 11's memory limits. Larger models may be slower or fail to load. Model behavior depends on its training and license; the app exposes the system prompt and sampling controls but cannot guarantee every model will respond to every request.
 
-**Important:** the initial build is only the app shell. It does not generate AI responses until a local inference runtime and model are integrated. No API keys are needed.
+## Build from an iPhone using GitHub Actions
 
-## Build from GitHub on iPhone
+1. Open the **Actions** tab in this repository.
+2. Select **Build iOS app**, then **Run workflow** (or wait for a push-triggered run).
+3. When the run succeeds, open it and download the `ST-Local-AI-unsigned-IPA` artifact.
+4. The IPA is **unsigned**. Sign it with your existing sideloading workflow before installing it through LiveContainer.
 
-1. Open the **Actions** tab.
-2. Select **Build iOS app**.
-3. Tap **Run workflow** on the `main` branch.
-4. When it finishes, open the run and download the `unsigned-ipa` artifact.
-5. Install/sign it using a compatible sideloading workflow. An unsigned IPA is not directly installable as-is.
+The workflow compiles llama.cpp for iOS from its upstream source, then builds this app. The first build can take a while.
 
-The workflow uses a macOS GitHub-hosted runner and XcodeGen to generate the Xcode project.
+## First launch
 
-## Model and runtime plan
+1. Open **Settings** in ST Local AI.
+2. Tap **Download & Load Model** and keep the app open while it downloads and loads the model.
+3. After it says **Model ready • runs offline**, return to chat.
 
-The intended first runtime is [llama.cpp](https://github.com/ggml-org/llama.cpp), with a compatible quantized model. Model downloads and inference should happen on-device. The first model will be selected after verifying iOS compatibility, chat template, memory needs, and license.
+The model is stored in the app's Documents directory. Removing the app removes its local model file.
 
-## Free software and model licensing
+## Model and runtime licenses
 
-This repository's original code is MIT-licensed. Third-party runtimes and downloaded models have their own licenses; check them before redistribution. The app will not bundle large model weights in this repository.
+- llama.cpp: MIT license, see upstream repository.
+- Qwen2.5 model family: Apache-2.0; review the model card before redistributing model weights.
+- This repository's app code: MIT.
 
-## Project structure
+## Project status
 
-- `LocalAI/` — SwiftUI app
-- `project.yml` — XcodeGen project definition
-- `.github/workflows/build.yml` — automated iOS build
-- `ThirdParty/README.md` — notes for runtime integration
-
-Made by ST.
+This is an early implementation. The GitHub Actions build must complete successfully before the IPA is considered build-verified. On-device speed and memory use still need to be tested on the iPhone 11.
