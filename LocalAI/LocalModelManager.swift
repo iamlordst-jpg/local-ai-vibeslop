@@ -94,7 +94,7 @@ actor LlamaContext {
         llama_sampler_chain_add(sampler, llama_sampler_init_temp(max(0.01, temperature)))
         llama_sampler_chain_add(sampler, llama_sampler_init_dist(UInt32.random(in: 1...UInt32.max)))
 
-        let limit = max(1, min(maxTokens, 1024))
+        let limit = max(1, min(maxTokens, 4096))
         var position = Int32(tokenIDs.count)
         var output = [CChar]()
         var answer = ""
@@ -119,7 +119,7 @@ actor LlamaContext {
         }
 
         if !output.isEmpty { answer += String(decoding: output.map { UInt8(bitPattern: $0) }, as: UTF8.self) }
-        return answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        return answer.replacingOccurrences(of: "<|im_end|>", with: "").replacingOccurrences(of: "<|im_start|>", with: "").replacingOccurrences(of: "<|endoftext|>", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func tokenize(_ text: String) -> [llama_token] {
@@ -163,13 +163,27 @@ final class LocalModelManager: ObservableObject {
     @Published private(set) var status = "Model not downloaded"
     @Published private(set) var isBusy = false
     @Published private(set) var isLoaded = false
+    @Published var selectedModelID = "qwen05"
 
-    private let filename = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
-    private let modelURLString = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf?download=true"
+    struct ModelOption: Identifiable, Hashable {
+        let id: String
+        let title: String
+        let filename: String
+        let url: String
+        let size: String
+        let note: String
+    }
+
+    let availableModels: [ModelOption] = [
+        .init(id: "qwen05", title: "Qwen2.5 0.5B Instruct (fastest)", filename: "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf", url: "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf?download=true", size: "~400 MB", note: "Best chance of running on iPhone 11; weakest answers."),
+        .init(id: "qwen15", title: "Qwen2.5 1.5B Instruct (better)", filename: "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf", url: "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf?download=true", size: "~1 GB", note: "Better quality; may be slower and memory-heavy."),
+        .init(id: "qwen3", title: "Qwen2.5 3B Instruct (stronger)", filename: "Qwen2.5-3B-Instruct-Q4_K_M.gguf", url: "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf?download=true", size: "~2 GB", note: "Most capable option here; may fail to load or cause iOS to close the app.")
+    ]
+    var selectedModel: ModelOption { availableModels.first(where: { $0.id == selectedModelID }) ?? availableModels[0] }
     private var context: LlamaContext?
 
     private var modelFileURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(filename)
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(selectedModel.filename)
     }
 
     func downloadAndLoad() async {
@@ -180,8 +194,8 @@ final class LocalModelManager: ObservableObject {
 
         do {
             if !FileManager.default.fileExists(atPath: modelFileURL.path) {
-                status = "Downloading model (~400 MB)… keep the app open"
-                guard let url = URL(string: modelURLString) else { throw URLError(.badURL) }
+                status = "Downloading model (\(selectedModel.size))… keep the app open"
+                guard let url = URL(string: selectedModel.url) else { throw URLError(.badURL) }
                 let (temporaryURL, response) = try await URLSession.shared.download(from: url)
                 if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     throw URLError(.badServerResponse)
