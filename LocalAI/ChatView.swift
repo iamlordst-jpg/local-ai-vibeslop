@@ -133,7 +133,7 @@ private struct SettingsView: View {
                             Text(model.isLoaded ? "Reload Model" : "Download & Load Model")
                         }
                     }.disabled(model.isBusy || model.isLoaded)
-                    Text("\\(model.selectedModel.title) • Q4_K_M • \\(model.selectedModel.size). No daily quota, API quota, or subscription limit: it runs locally. Output length is controlled by the token setting above; longer replies use more time and memory. Keep the app open while downloading/loading.").font(.footnote).foregroundStyle(.secondary)
+                    Text("\(model.selectedModel.title) • Q4_K_M • \(model.selectedModel.size). No daily quota, API quota, or subscription limit: it runs locally. Output length is controlled by the token setting above; longer replies use more time and memory. Keep the app open while downloading/loading.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Privacy") {
                     Label("No API key or cloud inference", systemImage: "lock.shield")
