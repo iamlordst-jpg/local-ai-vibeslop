@@ -168,7 +168,7 @@ final class LocalModelManager: ObservableObject {
             guard selectedModelID != oldValue else { return }
             context = nil
             isLoaded = false
-            status = "Selected \\(selectedModel.title) • load this model to chat"
+            status = "Selected \(selectedModel.title) • load this model to chat"
         }
     }
 
