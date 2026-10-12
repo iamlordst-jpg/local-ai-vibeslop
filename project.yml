@@ -18,7 +18,7 @@ targets:
       - path: LocalAI
     dependencies:
       - framework: Frameworks/llama.xcframework
-        embed: false
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.st.localai
