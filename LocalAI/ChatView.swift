@@ -119,6 +119,10 @@ private struct SettingsView: View {
                     Stepper("Maximum output: \(maxTokens) tokens", value: $maxTokens, in: 64...1024, step: 64)
                 }
                 Section("Local model") {
+                    Picker("Model", selection: $model.selectedModelID) {
+                        ForEach(model.availableModels) { option in Text(option.title).tag(option.id) }
+                    }
+                    Text(model.selectedModel.note).font(.footnote).foregroundStyle(.secondary)
                     Label(model.status, systemImage: model.isLoaded ? "checkmark.circle.fill" : "cpu")
                     Button {
                         Task { await model.downloadAndLoad() }
@@ -129,7 +133,7 @@ private struct SettingsView: View {
                             Text(model.isLoaded ? "Reload Model" : "Download & Load Model")
                         }
                     }.disabled(model.isBusy || model.isLoaded)
-                    Text("Qwen 2.5 0.5B Instruct • Q4_K_M • roughly 400 MB. The first download needs internet. Inference runs on-device afterward. Keep the app open while downloading/loading.").font(.footnote).foregroundStyle(.secondary)
+                    Text("\\(model.selectedModel.title) • Q4_K_M • \\(model.selectedModel.size). No daily quota, API quota, or subscription limit: it runs locally. Output length is controlled by the token setting above; longer replies use more time and memory. Keep the app open while downloading/loading.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Privacy") {
                     Label("No API key or cloud inference", systemImage: "lock.shield")
