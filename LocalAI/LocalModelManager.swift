@@ -49,7 +49,13 @@ actor LlamaContext {
         llama_backend_init()
         var parameters = llama_model_default_params()
 #if targetEnvironment(simulator)
+        // Metal is unavailable in the simulator build.
         parameters.n_gpu_layers = 0
+#else
+        // The iOS device XCFramework is built with GGML_METAL=ON.
+        // Offload all available transformer layers to the iPhone GPU instead
+        // of leaving llama.cpp on its default CPU-only configuration.
+        parameters.n_gpu_layers = 99
 #endif
         guard let model = llama_model_load_from_file(path, parameters) else {
             llama_backend_free()
@@ -97,7 +103,8 @@ actor LlamaContext {
         let limit = max(1, min(maxTokens, 4096))
         var position = Int32(tokenIDs.count)
         var output = [CChar]()
-        var answer = ""
+        var answerPieces: [String] = []
+        answerPieces.reserveCapacity(min(limit, 512))
 
         for _ in 0..<limit {
             let token = llama_sampler_sample(sampler, context, batch.n_tokens - 1)
@@ -105,10 +112,10 @@ actor LlamaContext {
 
             output.append(contentsOf: tokenPiece(token))
             if let decoded = String(validatingUTF8: output + [0]) {
-                answer += decoded
+                answerPieces.append(decoded)
                 output.removeAll(keepingCapacity: true)
             } else if let validSuffix = validUTF8Suffix(output) {
-                answer += validSuffix.text
+                answerPieces.append(validSuffix.text)
                 output = validSuffix.remaining
             }
 
@@ -118,7 +125,10 @@ actor LlamaContext {
             position += 1
         }
 
-        if !output.isEmpty { answer += String(decoding: output.map { UInt8(bitPattern: $0) }, as: UTF8.self) }
+        if !output.isEmpty { answerPieces.append(String(decoding: output.map { UInt8(bitPattern: $0) }, as: UTF8.self)) }
+        // Join once at the end rather than repeatedly reallocating the whole answer
+        // for every generated token.
+        let answer = answerPieces.joined()
         return answer.replacingOccurrences(of: "<|im_end|>", with: "").replacingOccurrences(of: "<|im_start|>", with: "").replacingOccurrences(of: "<|endoftext|>", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
