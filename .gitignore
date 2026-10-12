@@ -1,0 +1,13 @@
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcodeproj/
+*.xcworkspace/
+*.ipa
+*.zip
+*.gguf
+*.bin
+*.safetensors
+Models/
