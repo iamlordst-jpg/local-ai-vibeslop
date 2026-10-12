@@ -56,6 +56,18 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build | tee build.log
 
+      - name: Verify runtime is embedded
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Release-iphoneos/LocalAI.app"
+          echo "App bundle size:"
+          du -sh "$APP_PATH"
+          echo "Embedded frameworks:"
+          find "$APP_PATH/Frameworks" -maxdepth 3 -type f 2>/dev/null || true
+          test -f "$APP_PATH/Frameworks/llama.framework/llama" || {
+            echo "::error::llama.framework/llama is missing from the app bundle"
+            exit 1
+          }
+
       - name: Package unsigned IPA
         run: |
           APP_PATH="build/DerivedData/Build/Products/Release-iphoneos/LocalAI.app"
@@ -64,6 +76,7 @@ jobs:
           cp -R "$APP_PATH" build/ipa/Payload/
           cd build/ipa
           zip -qr "$GITHUB_WORKSPACE/ST-Local-AI-unsigned.ipa" Payload
+          ls -lh "$GITHUB_WORKSPACE/ST-Local-AI-unsigned.ipa"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
